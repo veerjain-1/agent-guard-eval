@@ -12,7 +12,7 @@
 
 **Deterministic, zero-flakiness security and behavioral auditing for LLM tool-calling traces and agent workflows.**
 
-[Key Features](#-key-features) • [Architecture](#-architecture) • [Quickstart](#-quickstart) • [CLI Usage](#-cli-usage) • [Python SDK](#-python-sdk) • [Built-in Rule Specs](#-built-in-rule-specifications)
+[Key Features](#-key-features) • [Architecture](#-architecture) • [Quickstart](#-quickstart) • [CLI Usage](#-cli-usage) • [Python SDK](#-python-sdk) • [Built-in Rule Specs](#-built-in-rule-specifications) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
