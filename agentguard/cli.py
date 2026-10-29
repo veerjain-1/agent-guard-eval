@@ -83,7 +83,7 @@ def evaluate_cmd(
             for ev in evaluators:
                 if isinstance(ev, SchemaValidator):
                     ev.tool_schemas = schemas
-        except (OSError, json.JSONDecodeError, ValueError) as e:
+        except (OSError, json.JSONDecodeError, ValueError, TypeError) as e:
             click.secho(
                 f"Error reading schema file '{schema_file}': {e}", fg="red", err=True
             )

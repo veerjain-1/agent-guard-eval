@@ -127,6 +127,12 @@ agentguard evaluate examples/trace_valid.json -s examples/tool_schemas.json
 agentguard evaluate examples/trace_vulnerable.json --fail-on HIGH
 ```
 
+The schema file must be a JSON object mapping tool names to valid Draft 7 JSON
+Schemas (including boolean schemas). Invalid configuration is rejected before
+evaluation, even for tools absent from the trace, with a diagnostic and exit code
+`2`. Successful evaluation exits `0`; findings at the selected `--fail-on`
+threshold exit `1`. An empty schema map disables strict schema checks.
+
 ### 2. Export CI/CD Reports (HTML, JUnit & SARIF)
 
 ```bash
