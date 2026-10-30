@@ -150,6 +150,12 @@ agentguard diff baseline_trace.json candidate_trace.json
 agentguard diff baseline_trace.json candidate_trace.json --format markdown -o diff.md
 ```
 
+The comparison matches individual finding occurrences by rule, tool, and message.
+Adding another occurrence of an existing violation is a regression and makes
+`agentguard diff` exit `1`; removing occurrences is an improvement when no new
+findings are introduced. Reordering otherwise identical findings does not create
+a regression.
+
 ### 4. Sanitize Traces & Redact Secrets
 
 ```bash

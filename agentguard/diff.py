@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import Counter
+
 from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
@@ -9,6 +11,10 @@ from rich.table import Table
 from agentguard.engine import evaluate_trace
 from agentguard.evaluators.base import BaseEvaluator
 from agentguard.models import AgentTrace, Finding
+
+
+def _finding_key(finding: Finding) -> tuple[str, str, str]:
+    return finding.rule_id, finding.tool_name or "", finding.message
 
 
 class DiffSummary(BaseModel):
@@ -68,16 +74,28 @@ class TraceDiffEngine:
             tool_counts_cand[c.tool_name] = tool_counts_cand.get(c.tool_name, 0) + 1
 
         # 5. Finding regressions
-        base_keys = {
-            (f.rule_id, f.tool_name or "", f.message): f for f in res_baseline.findings
-        }
-        cand_keys = {
-            (f.rule_id, f.tool_name or "", f.message): f for f in res_candidate.findings
-        }
+        # Match occurrences rather than distinct keys: repeating an existing
+        # violation is a regression even when its rule/tool/message is unchanged.
+        base_remaining = Counter(_finding_key(f) for f in res_baseline.findings)
+        cand_remaining = Counter(_finding_key(f) for f in res_candidate.findings)
 
-        new_findings = [f for k, f in cand_keys.items() if k not in base_keys]
-        resolved_findings = [f for k, f in base_keys.items() if k not in cand_keys]
-        retained_findings = [f for k, f in cand_keys.items() if k in base_keys]
+        new_findings: list[Finding] = []
+        resolved_findings: list[Finding] = []
+        retained_findings: list[Finding] = []
+        for finding in res_candidate.findings:
+            key = _finding_key(finding)
+            if base_remaining[key] > 0:
+                retained_findings.append(finding)
+                base_remaining[key] -= 1
+            else:
+                new_findings.append(finding)
+
+        for finding in res_baseline.findings:
+            key = _finding_key(finding)
+            if cand_remaining[key] > 0:
+                cand_remaining[key] -= 1
+            else:
+                resolved_findings.append(finding)
 
         if new_findings:
             verdict = "REGRESSED"
