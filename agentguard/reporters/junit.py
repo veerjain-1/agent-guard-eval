@@ -1,8 +1,18 @@
 """JUnit XML reporter for CI test runner integration."""
 
 import html
+import re
 
 from agentguard.models import EvaluationResult, Finding
+
+_INVALID_XML_CHARACTERS = re.compile(
+    "[^\x09\x0a\x0d\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]"
+)
+
+
+def _escape_xml(text: str) -> str:
+    """Escape markup and replace characters forbidden by XML 1.0."""
+    return html.escape(_INVALID_XML_CHARACTERS.sub("\ufffd", text))
 
 
 def render_junit_report(result: EvaluationResult) -> str:
@@ -14,7 +24,7 @@ def render_junit_report(result: EvaluationResult) -> str:
 
     lines: list[str] = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        f'<testsuite name="{html.escape(testsuite_name)}" tests="{tests_count}" failures="{failures_count}" errors="0" time="{time_sec:.3f}">',
+        f'<testsuite name="{_escape_xml(testsuite_name)}" tests="{tests_count}" failures="{failures_count}" errors="0" time="{time_sec:.3f}">',
     ]
 
     # Map findings by rule prefix
@@ -41,11 +51,12 @@ def render_junit_report(result: EvaluationResult) -> str:
         )
         if rule_findings:
             for rf in rule_findings:
-                msg = html.escape(rf.message)
-                details = html.escape(str(rf.details))
+                msg = _escape_xml(rf.message)
+                details = _escape_xml(str(rf.details))
+                tool = _escape_xml(str(rf.tool_name))
                 lines.append(
                     f'    <failure message="{msg}" type="{rf.severity.value}">'
-                    f"{msg}\nDetails: {details}\nStep: {rf.step_id}\nTool: {rf.tool_name}"
+                    f"{msg}\nDetails: {details}\nStep: {rf.step_id}\nTool: {tool}"
                     f"</failure>"
                 )
         lines.append("  </testcase>")
