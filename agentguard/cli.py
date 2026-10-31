@@ -23,6 +23,19 @@ from agentguard.reporters.sarif import render_sarif_report
 from agentguard.sanitizer import AgentTraceSanitizer
 
 
+def _write_output(path: Path, content: str) -> None:
+    """Write CLI output, rejecting missing parent directories and reporting errors."""
+    try:
+        path.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        click.secho(
+            f"Error writing output file '{path}': {exc}",
+            fg="red",
+            err=True,
+        )
+        raise click.exceptions.Exit(2) from exc
+
+
 @click.group()
 @click.version_option(version="0.2.0", prog_name="agentguard")
 def cli():
@@ -45,7 +58,7 @@ def cli():
     "-o",
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
-    help="Optional file path to write the output report.",
+    help="Optional file path to write the report (parent directory must exist).",
 )
 @click.option(
     "--fail-on",
@@ -95,28 +108,28 @@ def evaluate_cmd(
     if report_format == "console":
         if output:
             txt = render_console_report(result)
-            output.write_text(txt, encoding="utf-8")
+            _write_output(output, txt)
             click.echo(f"Report written to {output}")
         else:
             render_console_report(result, console=Console())
     elif report_format == "junit":
         xml_content = render_junit_report(result)
         if output:
-            output.write_text(xml_content, encoding="utf-8")
+            _write_output(output, xml_content)
             click.echo(f"JUnit XML written to {output}")
         else:
             click.echo(xml_content)
     elif report_format == "sarif":
         sarif_content = render_sarif_report(result)
         if output:
-            output.write_text(sarif_content, encoding="utf-8")
+            _write_output(output, sarif_content)
             click.echo(f"SARIF JSON written to {output}")
         else:
             click.echo(sarif_content)
     elif report_format == "html":
         html_content = render_html_report(result, trace=trace)
         if output:
-            output.write_text(html_content, encoding="utf-8")
+            _write_output(output, html_content)
             click.echo(f"Interactive HTML report written to {output}")
         else:
             click.echo(html_content)
@@ -145,7 +158,7 @@ def evaluate_cmd(
     "-o",
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
-    help="Optional file path to save generated adversarial test cases.",
+    help="Optional file path to save generated test cases (parent directory must exist).",
 )
 def fuzz_cmd(prompt: str, tool: str, output: Path):
     """Generate red-team adversarial prompt injection and jailbreak test cases."""
@@ -165,9 +178,9 @@ def fuzz_cmd(prompt: str, tool: str, output: Path):
         console.print(f"  [magenta]Payload:[/magenta] {tc.payload[:80]!r}...\n")
 
     if output:
-        output.write_text(
+        _write_output(
+            output,
             json.dumps([tc.model_dump() for tc in test_cases], indent=2),
-            encoding="utf-8",
         )
         console.print(f"[green]Saved attack test suite to {output}[/green]")
 
@@ -181,7 +194,7 @@ def fuzz_cmd(prompt: str, tool: str, output: Path):
     "-o",
     type=click.Path(dir_okay=False, path_type=Path),
     required=True,
-    help="Target file path to write the sanitized trace.",
+    help="Target file path to write the sanitized trace (parent directory must exist).",
 )
 @click.option(
     "--max-string-len",
@@ -202,7 +215,7 @@ def sanitize_cmd(trace_file: Path, output: Path, max_string_len: int):
     sanitizer = AgentTraceSanitizer(max_string_length=max_string_len)
     clean_trace, count = sanitizer.sanitize(trace)
 
-    output.write_text(clean_trace.model_dump_json(indent=2), encoding="utf-8")
+    _write_output(output, clean_trace.model_dump_json(indent=2))
 
     console = Console()
     console.print(f"[bold green]✔ Sanitized trace written to {output}[/bold green]")
@@ -228,7 +241,7 @@ def sanitize_cmd(trace_file: Path, output: Path, max_string_len: int):
     "-o",
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
-    help="Optional file path to write the diff report.",
+    help="Optional file path to write the diff report (parent directory must exist).",
 )
 def diff_cmd(
     baseline_file: Path, candidate_file: Path, report_format: str, output: Path | None
@@ -260,7 +273,7 @@ def diff_cmd(
     if report_format == "markdown":
         md = render_diff_markdown(diff)
         if output:
-            output.write_text(md, encoding="utf-8")
+            _write_output(output, md)
             click.echo(f"Saved diff report to {output}")
         else:
             click.echo(md)
@@ -268,7 +281,7 @@ def diff_cmd(
         render_diff_console(diff)
         if output:
             # Also save markdown to file if output is specified
-            output.write_text(render_diff_markdown(diff), encoding="utf-8")
+            _write_output(output, render_diff_markdown(diff))
             click.echo(f"Saved markdown diff report to {output}")
 
     if diff.verdict == "REGRESSED":
